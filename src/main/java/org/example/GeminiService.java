@@ -11,23 +11,26 @@ import java.util.*;
 @Service
 public class GeminiService {
 
-    @Value("${gemini.api.key}")
+    @Value("${gemini.api.key:}")
     private String apiKey;
 
-    @Value("${gemini.api.url}")
+    // Updated default to Gemini 2.0 Flash
+    @Value("${gemini.api.url:https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent}")
     private String apiUrl;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     public String generateExplanation(String rulesJson, String scenario) {
+        if (apiKey == null || apiKey.isEmpty()) {
+            return "{\"status\": \"ERROR\", \"explanation\": \"Backend Error: Gemini API Key is missing.\"}";
+        }
+
         RestTemplate restTemplate = new RestTemplate();
 
-        // Build the prompt
         String promptText = "Analyze this scenario based on these rules. " +
                 "Rules: " + rulesJson + " Scenario: " + scenario +
                 " Return only a JSON with 'status' and 'explanation'.";
 
-        // Construct Request Body
         Map<String, Object> textPart = Map.of("text", promptText);
         Map<String, Object> content = Map.of("parts", Collections.singletonList(textPart));
         Map<String, Object> requestBody = Map.of("contents", Collections.singletonList(content));
@@ -36,14 +39,13 @@ public class GeminiService {
 
         try {
             ResponseEntity<String> response = restTemplate.postForEntity(fullUrl, requestBody, String.class);
-
-            // Navigate the Google response tree
             JsonNode root = objectMapper.readTree(response.getBody());
+
+            // Extract the text from the Gemini response structure
             return root.path("candidates").get(0)
                     .path("content").path("parts").get(0)
                     .path("text").asText();
         } catch (Exception e) {
-            // This prevents the "Unexpected character" crash by returning the actual error
             return "{\"status\": \"ERROR\", \"explanation\": \"Google API Error: " + e.getMessage() + "\"}";
         }
     }
