@@ -7,4 +7,5 @@ RUN mvn clean package -DskipTests
 FROM eclipse-temurin:21-jdk-alpine
 COPY --from=build /target/digital-judge.jar app.jar
 EXPOSE 8080
-ENTRYPOINT ["java","-jar","/app.jar"]
+# Replace the old ENTRYPOINT with this:
+ENTRYPOINT java -Dserver.port=8080 -Dgemini.api.key=${GEMINI_API_KEY} -jar target/*.jar
